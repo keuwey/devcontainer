@@ -1,5 +1,7 @@
-FROM archlinux:latest AS base
+# Base da imagem
+FROM archlinux:latest
 
+# Atualizar pacotes e instalar ferramentas essenciais
 RUN pacman -Syu --noconfirm \
     bash \
     vim \
@@ -17,33 +19,33 @@ RUN pacman -Syu --noconfirm \
     shadow \
     && pacman -Scc --noconfirm
 
-# Create root user with defined password
+# Configurar usuário root com senha definida
 RUN echo "root:2wk@7n,./" | chpasswd
 
-# Add a user for development
-RUN mkdir -p /home/dev-container && useradd -m keuwey && chown keuwey /home/dev-container
-USER keuwey
+# Criar usuário para desenvolvimento
+RUN mkdir -p /home/dev-container \
+    && useradd -m keuwey \
+    && chown keuwey:keuwey /home/dev-container
 
-# Install .NET and C#
+# Instalar o .NET
 RUN curl -fsSL https://dot.net/v1/dotnet-install.sh | bash /dev/stdin --install-dir /usr/share/dotnet \
     && ln -s /usr/share/dotnet/dotnet /usr/bin/dotnet
 
-# Create and configure the virtual environment for Python
+# Configurar ambiente virtual para Python
 RUN python -m venv /home/dev-container/.venv \
-    && source /home/dev-container/.venv/bin/activate \
-    && pip install --no-cache-dir --upgrade pip setuptools \
-    && pip install ruff mypy uv \
+    && /home/dev-container/.venv/bin/pip install --no-cache-dir --upgrade pip setuptools \
+    && /home/dev-container/.venv/bin/pip install ruff mypy uv \
     && npm install -g pyright
 
-# Final step to reduce image size
-FROM archlinux:latest
-COPY --from=base /usr /usr
-COPY --from=base /bin /bin
-COPY --from=base /lib /lib
-COPY --from=base /sbin /sbin
-COPY --from=base /etc /etc
-COPY --from=base /home /home
+# Configurar PATH para incluir ferramentas adicionais
+ENV PATH="/usr/share/dotnet:/home/dev-container/.venv/bin:${PATH}"
+
+# Definir volume e diretório de trabalho
 VOLUME ["/home/dev-container"]
 WORKDIR /home/dev-container
 
+# Mudar para o usuário de desenvolvimento
+USER keuwey
+
+# Comando padrão
 CMD ["/bin/bash"]
